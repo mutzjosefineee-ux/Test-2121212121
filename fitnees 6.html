@@ -1,0 +1,611 @@
+<!doctype html>
+
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Fitness Tracker</title>
+  <style>
+    :root{--bg:#dbdada;--card:#fff;--pink:#ff2b9a;--muted:#6b7280}
+
+    /* Fullscreen / safe-area for modern iPhones (iPhone 16 etc.) */
+    html,body{height:100svh;min-height:100svh;margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial;background:var(--bg);color:#111;-webkit-text-size-adjust:100%;}
+    body{padding-top:env(safe-area-inset-top);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);}
+    .app{max-width:960px;margin:0 auto;padding:12px;min-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom));box-sizing:border-box}
+    header{display:flex;align-items:center;gap:12px}
+    .nav-left{display:flex;align-items:center;gap:12px}
+    .home-btn{width:40px;height:40px;border-radius:8px;background:var(--pink);color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer}
+    .title{flex:1;text-align:center;font-size:28px;color:var(--pink);font-weight:700}
+    .card{background:#fff;padding:18px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 6px 24px rgba(0,0,0,0.06);}
+    .form-row{margin:14px 0}
+    label{display:block;color:var(--pink);margin-bottom:8px;font-weight:600}
+    input[type="text"],input[type="date"],select,textarea{width:100%;padding:12px;border-radius:6px;border:1px solid rgba(0,0,0,0.06);box-sizing:border-box}
+    .weight-input{display:flex;align-items:center;gap:12px}
+    .weight-badge{background:var(--pink);color:#fff;border-radius:8px;padding:10px 12px;font-weight:700;cursor:pointer}
+    .picker{position:absolute;left:0;top:100%;margin-top:8px;background:#fff;border-radius:8px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px rgba(0,0,0,0.06);width:260px;z-index:40;padding:8px}
+    .picker .save-btn{width:auto}
+    .picker .back-link{width:auto}
+    .save-btn{background:var(--pink);color:#fff;padding:12px;border-radius:8px;border:none;width:100%;font-weight:700;cursor:pointer}
+    .list{margin-top:18px}
+    .entry{background:#fff;border-radius:8px;padding:14px;margin-bottom:12px;border:1px solid rgba(0,0,0,0.04);display:flex;justify-content:space-between;align-items:center}
+    .entry .meta{color:#333}
+    .empty{color:var(--muted);text-align:center;padding:24px}
+    .back-link{display:inline-flex;align-items:center;gap:8px;color:#333;text-decoration:none;background:#fff;padding:8px;border-radius:6px;border:1px solid rgba(0,0,0,0.06)}
+    @media (max-width:700px){
+      .title{font-size:20px}
+
+    }
+
+     /* Sidebar (slide-out left) */
+    .sidebar{position:fixed;left:0;top:0;bottom:0;width:320px;background:#fff;padding:18px;box-shadow:6px 0 30px rgba(0,0,0,0.08);z-index:30;transform:translateX(-110%);transition:transform .28s ease;border-right:1px solid rgba(0,0,0,0.04)}
+    .sidebar.open{transform:translateX(0)}
+    .sidebar h3{color:var(--pink);margin-top:0}
+    .sidebar .close-btn{background:transparent;border:none;font-size:20px;cursor:pointer}
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:25;opacity:0;transition:opacity .18s}
+    .backdrop.show{opacity:1}
+    .entries-toggle{display:block;text-align:left;width:100%;background:#fff;border-radius:6px;padding:10px;border:1px solid rgba(0,0,0,0.06);cursor:pointer;color:var(--pink);font-weight:700}
+    .sidebar-entries{max-height:260px;overflow:auto;margin-top:8px}
+    .calendar{background:#f7f7f7;padding:10px;border-radius:6px;border:1px solid rgba(0,0,0,0.04);margin-top:12px}
+    .calendar .day{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;background:#fff;border:1px solid rgba(0,0,0,0.04);cursor:pointer}
+    .calendar .day.marked{background:var(--pink);color:#fff;border-color:var(--pink)}
+    .calendar .weekday{font-size:11px;color:var(--muted);text-align:center}
+   </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="nav-left">
+        <button id="homeBtn" class="home-btn" aria-label="Home">☰</button>
+      </div>
+      <div class="title">Fitness Tracker</div>
+      <div style="width:52px"></div>
+    </header>
+    <!-- HOME VIEW -->
+    <section id="homeView" class="card" style="margin-top:18px">
+     <h2 style="text-align:center;color:var(--pink);margin:6px 0 18px;font-size:28px">Eintragung</h2>
+      <div class="form-row">
+        <label for="date">Datum</label>
+        <input id="date" type="date" disabled />
+      </div>
+      <div class="form-row">
+        <label for="muscle">Muskelbereich</label>
+        <select id="muscle">
+          <option>Push</option>
+          <option>Pull</option>
+          <option>Beine</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="device">Gerät</label>
+        <input id="device" type="text" placeholder="Gerät" />
+      </div>
+      <div class="form-row" style="position:relative">
+        <label for="weight">Gewicht</label>
+        <div class="weight-input">
+          <button id="weightBtn" class="weight-badge" aria-haspopup="dialog" aria-expanded="false">⚙</button>
+          <input id="weight" type="text" placeholder="20 kg" readonly />
+        </div>
+        <div id="weightPicker" class="picker" role="dialog" aria-modal="false" style="display:none">
+          <div style="padding:12px">
+            <label style="font-weight:700;color:var(--muted);margin-bottom:8px;display:block">Wähle Gewicht: <span id="weightVal">20</span> kg</label>
+            <input id="weightRange" type="range" min="10" max="100" value="20" />
+            <div style="display:flex;gap:8px;margin-top:8px">
+                 <button type="button" id="weightConfirm" class="save-btn" style="flex:1;padding:8px">Ok</button>
+                 <button type="button" id="weightCancel" class="back-link" style="flex:1;padding:8px">Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row" style="position:relative">
+        <label for="reps">Wiederholungen</label>
+        <div class="weight-input">
+          <button id="repsBtn" class="weight-badge" aria-haspopup="dialog" aria-expanded="false">⚙</button>
+          <input id="reps" type="text" placeholder="8" readonly />
+        </div>
+        <div id="repsPicker" class="picker" role="dialog" aria-modal="false" style="display:none">
+          <div style="padding:12px">
+            <label style="font-weight:700;color:var(--muted);margin-bottom:8px;display:block">Wähle Wiederholungen: <span id="repsVal">8</span></label>
+            <input id="repsRange" type="range" min="1" max="18" value="8" />
+            <div style="display:flex;gap:8px;margin-top:8px">
+                 <button type="button" id="repsConfirm" class="save-btn" style="flex:1;padding:8px">Ok</button>
+                 <button type="button" id="repsCancel" class="back-link" style="flex:1;padding:8px">Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row" style="position:relative">
+        <label for="sets">Sätze</label>
+        <div class="weight-input">
+          <button id="setsBtn" class="weight-badge" aria-haspopup="dialog" aria-expanded="false">⚙</button>
+          <input id="sets" type="text" placeholder="3" readonly />
+        </div>
+        <div id="setsPicker" class="picker" role="dialog" aria-modal="false" style="display:none">
+          <div style="padding:12px">
+            <label style="font-weight:700;color:var(--muted);margin-bottom:8px;display:block">Wähle Sätze: <span id="setsVal">3</span></label>
+            <input id="setsRange" type="range" min="1" max="5" value="3" />
+            <div style="display:flex;gap:8px;margin-top:8px">
+                 <button type="button" id="setsConfirm" class="save-btn" style="flex:1;padding:8px">Ok</button>
+                 <button type="button" id="setsCancel" class="back-link" style="flex:1;padding:8px">Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <button id="saveBtn" class="save-btn">Speichern</button>
+      </div>
+      
+      
+    </section>
+     <!-- ENTRIES VIEW -->
+
+    <section id="entriesView" class="card" style="margin-top:18px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <a href="#/" id="backBtn" class="back-link">← Zurück</a>
+        <div style="font-weight:700;color:var(--pink);font-size:22px">Gespeicherte Einträge</div>
+        <button id="clearAll" class="back-link" title="Alle löschen" style="background:#fff">Alles löschen</button>
+
+      </div>
+
+      <div id="entriesList" class="list">
+        <div class="empty">Keine Einträge gefunden.</div>
+      </div>
+    </section>
+
+    <!-- SIDEBAR -->
+
+    <aside id="sidebar" class="sidebar" aria-hidden="true">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3>Menü</h3>
+        <button id="closeSidebar" class="close-btn" aria-label="Schließen">✕</button>
+      </div>
+      <div style="margin-top:12px">
+        <div class="card" style="padding:12px">
+          <h4 style="text-align:center;color:var(--pink);margin:6px 0 10px">Menü</h4>
+          <div style="margin-top:8px">
+            <button id="entriesOpenBtn" class="entries-toggle">Eintragungen →</button>
+            <div style="display:flex;gap:8px;margin-top:10px;margin-bottom:6px">
+              <select id="calendarYear" style="flex:0 0 120px;padding:8px;border-radius:6px;border:1px solid rgba(0,0,0,0.06)"></select>
+              <select id="calendarMonth" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(0,0,0,0.06)"></select>
+            </div>
+            <div id="sidebarCalendar" class="calendar"></div>
+            <div id="sessionContainer" style="margin-top:12px">
+              <h4 style="text-align:left;color:var(--pink);margin:6px 0 8px">Aktuelle Eintragungen</h4>
+              <div id="sessionList" style="max-height:180px;overflow:auto;background:#fff;padding:8px;border-radius:6px;border:1px solid rgba(0,0,0,0.04)"></div>
+              <div style="margin-top:8px">
+                <button type="button" id="finishBtn" class="save-btn">Fertig</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <div id="backdrop" class="backdrop" style="display:none"></div>
+  </div>
+  <script>
+    // Basic client-side routes using hash
+    function navigate(){
+      const hash = location.hash || '#/';
+      if(hash.startsWith('#/entries')){
+        document.getElementById('homeView').style.display = 'none';
+        document.getElementById('entriesView').style.display = '';
+        loadEntries();
+      } else {
+        document.getElementById('homeView').style.display = '';
+        document.getElementById('entriesView').style.display = 'none';
+      }
+    }
+    window.addEventListener('hashchange', navigate);
+    window.addEventListener('load', ()=>{
+      // set date input default to today (if present)
+      const dateInput = document.getElementById('date');
+      if(dateInput && !dateInput.value){
+        const d = new Date();
+        const iso = d.toISOString().slice(0,10);
+        dateInput.value = iso;
+      }
+      // set default weight if present
+      const w = document.getElementById('weight');
+      if(w && !w.value) w.value = '20 kg';
+      // set default sets if present
+      const s = document.getElementById('sets');
+      if(s && !s.value) s.value = '3';
+        // set default reps if present
+        const r = document.getElementById('reps');
+        if(r && !r.value) r.value = '8';
+      navigate();
+      // render any existing session items in sidebar
+      setTimeout(()=>{ renderSessionInSidebar(); }, 50);
+    });
+    // storage helpers
+    function fetchEntries(){
+      try{
+        return JSON.parse(localStorage.getItem('fitness_entries') || '[]');
+      }catch(e){return []}
+    }
+    function saveEntries(arr){
+      localStorage.setItem('fitness_entries', JSON.stringify(arr));
+    }
+    // session and groups helpers
+    function fetchSession(){ try{ return JSON.parse(localStorage.getItem('session_entries')||'[]'); }catch(e){return []} }
+    function saveSession(arr){ localStorage.setItem('session_entries', JSON.stringify(arr)); }
+    function clearSession(){ localStorage.removeItem('session_entries'); }
+    function fetchGroups(){ try{ return JSON.parse(localStorage.getItem('fitness_groups')||'[]'); }catch(e){return []} }
+    function saveGroups(arr){ localStorage.setItem('fitness_groups', JSON.stringify(arr)); }
+    // load entries into list
+    // render entries page as list of groups (folders)
+    function loadEntries(){
+      const groups = fetchGroups();
+      const container = document.getElementById('entriesList');
+      container.innerHTML = '';
+      if(!groups.length){
+        container.innerHTML = '<div class="empty">Keine Einträge gefunden.</div>';
+        return;
+      }
+      // newest groups first
+      groups.sort((a,b)=> b.id - a.id);
+      groups.forEach(g=>{
+        // group container
+        const groupWrap = document.createElement('div');
+        groupWrap.style.margin = '8px 0';
+
+        // header: only show the group's date as a clickable button
+        const headerRow = document.createElement('div');
+        headerRow.style.display = 'flex';
+        headerRow.style.justifyContent = 'space-between';
+        headerRow.style.alignItems = 'center';
+
+        const dateBtn = document.createElement('button');
+        dateBtn.type = 'button';
+        dateBtn.className = 'back-link';
+        dateBtn.style.fontWeight = '700';
+        dateBtn.textContent = new Date(g.id).toLocaleDateString();
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'back-link';
+        deleteBtn.textContent = 'Löschen';
+        deleteBtn.addEventListener('click', ()=>{
+          if(confirm('Gruppe wirklich löschen?')){
+            const all = fetchGroups().filter(x=>x.id!==g.id);
+            saveGroups(all);
+            loadEntries();
+          }
+        });
+
+        headerRow.appendChild(dateBtn);
+        headerRow.appendChild(deleteBtn);
+        groupWrap.appendChild(headerRow);
+
+        // details container (hidden by default)
+        const details = document.createElement('div');
+        details.style.display = 'none';
+        details.style.marginTop = '6px';
+
+        // fill details with group's items
+        function populateDetails(){
+          details.innerHTML = '';
+          g.items.forEach(e=>{
+            const div = document.createElement('div');
+            div.className = 'entry';
+            const left = document.createElement('div');
+            left.className = 'meta';
+            left.innerHTML = `<div style="font-weight:700">${e.date} — ${e.muscle}</div><div style="color:var(--muted)">${e.device || ''} ${e.weight ? ' • '+e.weight : ''} ${e.sets ? ' • '+e.sets+' Sätze' : ''}</div><div style="margin-top:6px">${e.reps || ''}</div>`;
+            div.appendChild(left);
+            details.appendChild(div);
+          });
+        }
+
+        // toggle on click
+        dateBtn.addEventListener('click', ()=>{
+          if(details.style.display === 'none'){
+            populateDetails();
+            details.style.display = '';
+          } else {
+            details.style.display = 'none';
+          }
+        });
+
+        groupWrap.appendChild(details);
+        container.appendChild(groupWrap);
+      });
+    }
+    // save handler for main form - store into current session (shown in sidebar)
+    const saveBtnEl = document.getElementById('saveBtn');
+    if(saveBtnEl){
+      saveBtnEl.addEventListener('click', ()=>{
+        const date = document.getElementById('date').value;
+        const muscle = document.getElementById('muscle').value;
+        const device = document.getElementById('device').value;
+        const weight = document.getElementById('weight').value;
+        const sets = document.getElementById('sets') ? document.getElementById('sets').value : '';
+        const reps = document.getElementById('reps').value;
+        if(!date){ alert('Bitte Datum angeben.'); return; }
+        const entry = {id:Date.now(), date, muscle, device, weight, reps, sets};
+        const sess = fetchSession();
+        sess.unshift(entry);
+        saveSession(sess);
+        // clear some fields and reset weight
+       const dev = document.getElementById('device'); if(dev) dev.value = '';
+        const w = document.getElementById('weight'); if(w) w.value = '20 kg';
+        const s2 = document.getElementById('sets'); if(s2) s2.value = '3';
+        const r2 = document.getElementById('reps'); if(r2) r2.value = '8';
+        renderSessionInSidebar();
+      });
+    }
+
+    // render session entries in the sidebar
+    function renderSessionInSidebar(){
+      const list = fetchSession();
+      const target = document.getElementById('sessionList');
+      if(!target) return;
+      target.innerHTML = '';
+      if(!list.length){ target.innerHTML = '<div style="color:var(--muted);text-align:center;padding:8px">Keine aktuellen Eintragungen.</div>'; return; }
+      list.forEach(e=>{
+        const row = document.createElement('div');
+        row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems='center'; row.style.padding='6px 4px';
+        row.style.borderBottom = '1px solid rgba(0,0,0,0.03)';
+        const left = document.createElement('div');
+        left.style.fontSize='13px'; left.innerHTML = `<div style="font-weight:700">${e.date} — ${e.muscle}</div><div style="color:var(--muted);font-size:12px">${e.device || ''} ${e.weight? ' • '+e.weight:''} ${e.sets? ' • '+e.sets+' Sätze':''}</div>`;
+        const actions = document.createElement('div');
+        const del = document.createElement('button'); del.type='button'; del.className='back-link'; del.style.background='#fff'; del.textContent='Entf';
+        del.addEventListener('click', ()=>{
+          const arr = fetchSession().filter(i=>i.id!==e.id);
+          saveSession(arr);
+          renderSessionInSidebar();
+        });
+        actions.appendChild(del);
+        row.appendChild(left); row.appendChild(actions);
+        target.appendChild(row);
+      });
+    }
+
+    // finish current session: save as a group and clear session
+    const finishBtn = document.getElementById('finishBtn');
+    if(finishBtn) finishBtn.addEventListener('click', ()=>{
+      const sess = fetchSession();
+      if(!sess.length){ alert('Keine Eintragungen in der Session.'); return; }
+      const gid = Date.now();
+      const g = { id: gid, name: 'Training ' + new Date(gid).toLocaleString(), items: sess };
+      const groups = fetchGroups(); groups.unshift(g); saveGroups(groups);
+      clearSession(); renderSessionInSidebar();
+      location.hash = '#/entries';
+    });
+
+    document.getElementById('backBtn').addEventListener('click', (e)=>{ e.preventDefault(); location.hash = '#/'; });
+    const viewEntriesEl = document.getElementById('viewEntries');
+    if(viewEntriesEl) viewEntriesEl.addEventListener('click', ()=>{ location.hash = '#/entries'; });
+    document.getElementById('homeBtn').addEventListener('click', ()=>{ toggleSidebar(); });
+    const openHomeSidebarBtn = document.getElementById('openSidebarFromHome');
+    if(openHomeSidebarBtn) openHomeSidebarBtn.addEventListener('click', ()=>{ toggleSidebar(); });
+    document.getElementById('clearAll').addEventListener('click', ()=>{
+      if(confirm('Alle Gruppen wirklich löschen?')){ localStorage.removeItem('fitness_groups'); loadEntries(); }
+    });
+    // weight picker handlers
+    (function(){
+      const weightBtn = document.getElementById('weightBtn');
+      const weightPicker = document.getElementById('weightPicker');
+      const weightRange = document.getElementById('weightRange');
+      const weightVal = document.getElementById('weightVal');
+      const weightInput = document.getElementById('weight');
+      const weightConfirm = document.getElementById('weightConfirm');
+      const weightCancel = document.getElementById('weightCancel');
+      function openPicker(){
+        const val = parseInt((weightInput.value||'20').split(' ')[0]) || 20;
+        weightRange.value = val;
+        weightVal.textContent = val;
+        weightPicker.style.display = '';
+        weightBtn.setAttribute('aria-expanded','true');
+      }
+      function closePicker(){ if(weightPicker) weightPicker.style.display='none'; if(weightBtn) weightBtn.setAttribute('aria-expanded','false'); }
+      if(weightPicker) weightPicker.addEventListener('click', (e)=>{ e.stopPropagation(); });
+      if(weightBtn){
+        weightBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(weightPicker.style.display==='') closePicker(); else openPicker(); });
+      }
+      if(weightRange) weightRange.addEventListener('input', ()=>{ weightVal.textContent = weightRange.value; });
+      if(weightConfirm) weightConfirm.addEventListener('click', ()=>{ if(weightInput) weightInput.value = weightRange.value + ' kg'; closePicker(); });
+      if(weightCancel) weightCancel.addEventListener('click', (e)=>{ e.preventDefault(); closePicker(); });
+      // close on outside click or Escape
+      document.addEventListener('click', (e)=>{ if(weightPicker && !weightPicker.contains(e.target) && e.target !== weightBtn) closePicker(); });
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePicker(); });
+    })();
+
+    // sets picker (1-5)
+    (function(){
+      const setsBtn = document.getElementById('setsBtn');
+      const setsPicker = document.getElementById('setsPicker');
+      const setsRange = document.getElementById('setsRange');
+      const setsVal = document.getElementById('setsVal');
+      const setsInput = document.getElementById('sets');
+      const setsConfirm = document.getElementById('setsConfirm');
+      const setsCancel = document.getElementById('setsCancel');
+      function openSets(){
+        const val = parseInt((setsInput.value||'3').split(' ')[0]) || 3;
+        setsRange.value = val;
+        setsVal.textContent = val;
+        setsPicker.style.display = '';
+        setsBtn.setAttribute('aria-expanded','true');
+      }
+      function closeSets(){ if(setsPicker) setsPicker.style.display='none'; if(setsBtn) setsBtn.setAttribute('aria-expanded','false'); }
+      if(setsPicker) setsPicker.addEventListener('click', (e)=>{ e.stopPropagation(); });
+      if(setsBtn){
+        setsBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(setsPicker.style.display==='') closeSets(); else openSets(); });
+      }
+      if(setsRange) setsRange.addEventListener('input', ()=>{ setsVal.textContent = setsRange.value; });
+      if(setsConfirm) setsConfirm.addEventListener('click', ()=>{ if(setsInput) setsInput.value = setsRange.value; closeSets(); });
+      if(setsCancel) setsCancel.addEventListener('click', (e)=>{ e.preventDefault(); closeSets(); });
+      // close on outside click or Escape
+      document.addEventListener('click', (e)=>{ if(setsPicker && !setsPicker.contains(e.target) && e.target !== setsBtn) closeSets(); });
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeSets(); });
+    })();
+
+    // reps picker (1-18)
+    (function(){
+      const repsBtn = document.getElementById('repsBtn');
+      const repsPicker = document.getElementById('repsPicker');
+      const repsRange = document.getElementById('repsRange');
+      const repsVal = document.getElementById('repsVal');
+      const repsInput = document.getElementById('reps');
+      const repsConfirm = document.getElementById('repsConfirm');
+      const repsCancel = document.getElementById('repsCancel');
+      function openReps(){
+        const val = parseInt((repsInput.value||'8').split(' ')[0]) || 8;
+        repsRange.value = val;
+        repsVal.textContent = val;
+        repsPicker.style.display = '';
+        repsBtn.setAttribute('aria-expanded','true');
+      }
+      function closeReps(){ if(repsPicker) repsPicker.style.display='none'; if(repsBtn) repsBtn.setAttribute('aria-expanded','false'); }
+      if(repsPicker) repsPicker.addEventListener('click', (e)=>{ e.stopPropagation(); });
+      if(repsBtn){
+        repsBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(repsPicker.style.display==='') closeReps(); else openReps(); });
+      }
+      if(repsRange) repsRange.addEventListener('input', ()=>{ repsVal.textContent = repsRange.value; });
+      if(repsConfirm) repsConfirm.addEventListener('click', ()=>{ if(repsInput) repsInput.value = repsRange.value; closeReps(); });
+      if(repsCancel) repsCancel.addEventListener('click', (e)=>{ e.preventDefault(); closeReps(); });
+      // close on outside click or Escape
+      document.addEventListener('click', (e)=>{ if(repsPicker && !repsPicker.contains(e.target) && e.target !== repsBtn) closeReps(); });
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeReps(); });
+    })();
+    // sidebar handlers
+    (function(){
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('backdrop');
+     const closeBtn = document.getElementById('closeSidebar');
+      const clearSide = document.getElementById('clearSidebar');
+      function openSidebar(){
+        sidebar.classList.add('open');
+        sidebar.setAttribute('aria-hidden','false');
+        backdrop.style.display = '';
+        setTimeout(()=>backdrop.classList.add('show'),10);
+      }
+      function closeSidebar(){
+        sidebar.classList.remove('open');
+        sidebar.setAttribute('aria-hidden','true');
+        backdrop.classList.remove('show');
+        setTimeout(()=>backdrop.style.display='none',220);
+      }
+      function toggleSidebar(){ if(sidebar.classList.contains('open')) closeSidebar(); else openSidebar(); }
+      // expose toggle to global so the home button can call it
+      window.toggleSidebar = toggleSidebar;
+      if(closeBtn) closeBtn.addEventListener('click', closeSidebar);
+      if(backdrop) backdrop.addEventListener('click', closeSidebar);
+      if(clearSide) clearSide.addEventListener('click', ()=>{ if(confirm('Alle Einträge wirklich löschen?')){ localStorage.removeItem('fitness_entries'); loadEntries(); renderSidebarCalendar(); } });
+    })();
+    document.addEventListener('DOMContentLoaded', ()=>{ renderSidebarCalendar(); });
+    const entriesOpenBtn = document.getElementById('entriesOpenBtn');
+    if(entriesOpenBtn){
+      entriesOpenBtn.addEventListener('click', ()=>{
+        // close sidebar and navigate to the main entries page
+        toggleSidebar();
+        location.hash = '#/entries';
+      });
+    }
+
+    function renderSidebarCalendar(){
+      const target = document.getElementById('sidebarCalendar');
+      const yearSel = document.getElementById('calendarYear');
+      const monthSel = document.getElementById('calendarMonth');
+      if(!target || !yearSel || !monthSel) return;
+      // fill selectors if empty
+      if(!yearSel.options.length){
+        for(let y=2026;y<=2028;y++) yearSel.add(new Option(y,y));
+      }
+      if(!monthSel.options.length){
+        const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+        monthNames.forEach((m,i)=> monthSel.add(new Option(m,i)));
+      }
+      // determine displayed month/year from selectors or current date
+      const selYear = parseInt(yearSel.value,10);
+      const selMonth = parseInt(monthSel.value,10);
+      const now = new Date();
+      const year = Number.isFinite(selYear) ? selYear : now.getFullYear();
+      const month = Number.isFinite(selMonth) ? selMonth : now.getMonth();
+      // build calendar
+      const first = new Date(year,month,1);
+      const daysInMonth = new Date(year, month+1, 0).getDate();
+      const startDay = first.getDay(); // 0=Sun
+      const weekdays = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+      let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><strong>${first.toLocaleString('de-DE',{month:'long'})} ${year}</strong></div>`;
+      html += '<div style="display:grid;grid-template-columns:repeat(7,28px);gap:4px;margin-bottom:6px">';
+      weekdays.forEach(d=> html += `<div class="weekday">${d}</div>`);
+      html += '</div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(7,28px);gap:4px">';
+      // leading blanks
+      for(let i=0;i<startDay;i++) html += '<div></div>';
+      // load marks for this month
+      const marks = loadCalendarMarks()[`${year}-${String(month+1).padStart(2,'0')}`] || [];
+      for(let d=1; d<=daysInMonth; d++){
+        const isMarked = marks.includes(d);
+        const cls = isMarked ? 'day marked' : 'day';
+        const content = isMarked ? '✓' : d;
+        html += `<div class="${cls}" data-day="${d}" data-year="${year}" data-month="${month}">${content}</div>`;
+      }
+      html += '</div>';
+      target.innerHTML = html;
+      // attach click handlers to days
+      target.querySelectorAll('.day').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          const y = el.getAttribute('data-year');
+          const m = el.getAttribute('data-month');
+          const day = parseInt(el.getAttribute('data-day'),10);
+          toggleDayMark(`${y}-${String(Number(m)+1).padStart(2,'0')}`, day);
+          renderSidebarCalendar();
+        });
+      });
+    }
+    // simple calendar marks storage helpers
+    function loadCalendarMarks(){
+      try{ return JSON.parse(localStorage.getItem('calendar_marks')||'{}'); }catch(e){return{}}
+    }
+    function saveCalendarMarks(obj){ localStorage.setItem('calendar_marks', JSON.stringify(obj)); }
+    function toggleDayMark(key, day){
+      const obj = loadCalendarMarks();
+      const arr = obj[key] || [];
+      const idx = arr.indexOf(day);
+      if(idx === -1) arr.push(day); else arr.splice(idx,1);
+      obj[key] = arr.sort((a,b)=>a-b);
+      saveCalendarMarks(obj);
+    }
+
+    // ensure calendar updates when the sidebar opens
+    const origToggle = window.toggleSidebar;
+    window.toggleSidebar = function(){ origToggle(); setTimeout(()=>{ renderSidebarCalendar(); }, 250); };
+
+    // update calendar when selectors change
+    const yearSel = document.getElementById('calendarYear');
+    const monthSel = document.getElementById('calendarMonth');
+    if(yearSel && monthSel){
+      yearSel.addEventListener('change', renderSidebarCalendar);
+      monthSel.addEventListener('change', renderSidebarCalendar);
+    }
+
+    // auto-advance month when real world month changes (check hourly)
+    (function(){
+      let last = new Date().getMonth();
+      setInterval(()=>{
+        const nowm = new Date().getMonth();
+        if(nowm !== last){
+          last = nowm;
+          // set selects to current month/year if within range
+          const now = new Date();
+          if(yearSel && monthSel){
+            if(Number(yearSel.value) <= now.getFullYear() && Number(yearSel.value) >= 2026){
+              yearSel.value = now.getFullYear();
+              monthSel.value = now.getMonth();
+            } else {
+              yearSel.value = now.getFullYear();
+              monthSel.value = now.getMonth();
+            }
+            renderSidebarCalendar();
+          }
+        }
+      }, 1000*60*60);
+    })();
+
+  </script>
+
+</body>
+
+</html>
